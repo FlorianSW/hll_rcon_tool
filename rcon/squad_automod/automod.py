@@ -11,6 +11,7 @@ from rcon.cache_utils import get_redis_client
 from rcon.config import get_config
 from rcon.discord import send_to_discord_audit
 from rcon.recorded_commands import RecordedRcon
+from rcon.extended_commands import GetTeamViewOptions
 from rcon.settings import SERVER_INFO
 from rcon.squad_automod.models import (
     APlayer,
@@ -201,7 +202,11 @@ def should_kick_player(
 
 def get_punitions_to_apply(rcon, config: NoLeaderConfig) -> PunitionsToApply:
     logger.debug("Getting team info")
-    team_view = rcon.get_team_view_fast()
+    team_view = rcon.get_team_view_fast(GetTeamViewOptions(
+        exclude_countries=True,
+        exclude_bans=True,
+        exclude_profiles=True,
+    ))
     red = get_redis_client()
     punitions_to_apply = PunitionsToApply()
 

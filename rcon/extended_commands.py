@@ -50,6 +50,22 @@ LOG_ACTIONS = [
 logger = logging.getLogger(__name__)
 
 
+class GetPlayersOptions:
+    exclude_countries: bool
+    exclude_bans: bool
+
+    def __init__(self, exclude_countries: bool = False, exclude_bans: bool = False):
+        self.exclude_countries = exclude_countries
+        self.exclude_bans = exclude_bans
+
+
+class GetTeamViewOptions(GetPlayersOptions):
+    exclude_profiles: bool
+
+    def __init__(self, exclude_countries: bool = False, exclude_bans: bool = False, exclude_profiles: bool = False):
+        super().__init__(exclude_countries, exclude_bans)
+        self.exclude_profiles = exclude_profiles
+
 class GameState(TypedDict):
     """TypedDict for Rcon.get_gamestate"""
 
@@ -250,10 +266,10 @@ class Rcon(ServerCtl):
         return game
 
     @ttl_cache(ttl=2, cache_falsy=False)
-    def get_team_view_fast(self):
+    def get_team_view_fast(self, options: GetTeamViewOptions = GetTeamViewOptions()):
         teams = {}
         players_by_id = {}
-        players = self.get_players_fast()
+        players = self.get_players_fast(options)
 
         futures = {
             self.run_in_pool(idx, "get_detailed_player_info", player[NAME]): player
@@ -269,17 +285,19 @@ class Rcon(ServerCtl):
             player.update(player_data)
             players_by_id[player[STEAMID]] = player
 
-        logger.debug("Getting DB profiles")
-        steam_profiles = {
-            profile[STEAMID]: profile
-            for profile in get_profiles(list(players_by_id.keys()))
-        }
-        logger.debug("Getting VIP list")
-        try:
-            vips = set(v[STEAMID] for v in self.get_vip_ids())
-        except Exception:
-            logger.exception("Failed to get VIPs")
-            vips = set()
+        steam_profiles = {}
+        vips = set()
+        if not options.exclude_profiles:
+            logger.debug("Getting DB profiles")
+            steam_profiles = {
+                profile[STEAMID]: profile
+                for profile in get_profiles(list(players_by_id.keys()))
+            }
+            logger.debug("Getting VIP list")
+            try:
+                vips = set(v[STEAMID] for v in self.get_vip_ids())
+            except Exception:
+                logger.exception("Failed to get VIPs")
 
         for player in players_by_id.values():
             steam_id_64 = player[STEAMID]
@@ -306,7 +324,7 @@ class Rcon(ServerCtl):
                     squad["kills"] = sum(p["kills"] for p in squad["players"])
                     squad["deaths"] = sum(p["deaths"] for p in squad["players"])
                 except Exception as e:
-                    logger.exception()
+                    logger.exception(e)
 
         game = {}
         for team, squads in teams.items():
@@ -507,7 +525,7 @@ class Rcon(ServerCtl):
             return super().do_remove_admin(steam_id_64)
 
     @ttl_cache(ttl=2)
-    def get_players_fast(self):
+    def get_players_fast(self, options: GetPlayersOptions = GetPlayersOptions):
         players = {}
         ids = []
 
@@ -515,10 +533,13 @@ class Rcon(ServerCtl):
             players[steam_id_64] = {NAME: name, STEAMID: steam_id_64}
             ids.append(steam_id_64)
 
-        countries = self.thread_pool.submit(get_players_country_code, ids)
-        bans = self.thread_pool.submit(get_players_have_bans, ids)
+        futures = []
+        if not options.exclude_countries:
+            futures.append(self.thread_pool.submit(get_players_country_code, ids))
+        if not options.exclude_bans:
+            futures.append(self.thread_pool.submit(get_players_have_bans, ids))
 
-        for future in as_completed([countries, bans]):
+        for future in as_completed(futures):
             d = future.result()
             for steamid, data in d.items():
                 players.get(steamid, {}).update(data)
