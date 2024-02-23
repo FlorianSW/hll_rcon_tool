@@ -1,10 +1,6 @@
 import {Box, ContentLayout, Header, SpaceBetween} from '@cloudscape-design/components';
 import React, {ReactNode} from 'react';
 import {Board, BoardItem, BoardProps} from '@cloudscape-design/board-components';
-import {Notifications} from '../notifications';
-import {LoaderFunction, useLoaderData} from 'react-router-dom';
-import {firstValueFrom} from 'rxjs';
-import {Logs, LogsService} from '../logs.service';
 import LogsView from './logs-view';
 
 interface boardItemData {
@@ -12,25 +8,7 @@ interface boardItemData {
     content: string | ReactNode;
 }
 
-interface routeData {
-    logs: Logs,
-}
-
-export function loadDashboardLoader(logs: LogsService, notifications: Notifications): LoaderFunction {
-    return async () => {
-        const l = await firstValueFrom(notifications.connectTo(logs.recentLogs()))
-        return {
-            logs: l,
-        } as routeData;
-    }
-}
-
-interface StartProps {
-    logsService: LogsService;
-}
-
-export default function Start({logsService}: StartProps) {
-    const {logs} = useLoaderData() as routeData;
+export default function Start() {
     const [items, setItems] = React.useState<readonly BoardProps.Item<boardItemData>[]>([{
         id: 'players',
         columnSpan: 2,
@@ -45,7 +23,7 @@ export default function Start({logsService}: StartProps) {
         rowSpan: 4,
         data: {
             title: 'Logs',
-            content: <LogsView service={logsService} logs={logs}/>,
+            content: <LogsView/>,
         },
     }]);
 

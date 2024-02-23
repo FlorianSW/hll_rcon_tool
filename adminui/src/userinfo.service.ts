@@ -1,5 +1,5 @@
-import {AxiosInstance, HttpStatusCode} from 'axios';
-import {defer, Observable} from 'rxjs';
+import {map, Observable} from 'rxjs';
+import {HttpClient} from "./http-client";
 
 export interface UserInformation {
     canChangeServerSettings: boolean;
@@ -20,43 +20,30 @@ interface loginResponse {
 }
 
 export class UserinfoService {
-    constructor(private readonly client: AxiosInstance) {
+    constructor(private readonly client: HttpClient) {
     }
 
     info(): Observable<UserInformation> {
-        return defer(async () => {
-            const r = await this.client.get<isLoggedInResponse>('/api/is_logged_in');
-            if (r.status !== HttpStatusCode.Ok) {
-                throw new Error('Could not fetch logged_in information: ' + r.status)
-            }
+        return this.client.get<isLoggedInResponse>('/api/is_logged_in').pipe(map((r) => {
             return {
-                isAuthenticated: r.data.result.authenticated,
-                canChangeServerSettings: r.data.result.can_change_server_settings,
+                isAuthenticated: r.result.authenticated,
+                canChangeServerSettings: r.result.can_change_server_settings,
             } as UserInformation;
-        });
+        }));
     }
 
     logOut(): Observable<void> {
-        return defer(async () => {
-            const r = await this.client.get('/api/logout');
-            if (r.status !== HttpStatusCode.Ok) {
-                throw new Error('Could not fetch logged_in information: ' + r.status)
-            }
-        });
+        return this.client.get('/api/logout');
     }
 
     logIn(username: string, password: string): Observable<void> {
-        return defer(async () => {
-            const r = await this.client.post<loginResponse>('/api/login', {
-                username,
-                password,
-            });
-            if (r.status !== HttpStatusCode.Ok) {
-                throw new Error('Could not login information: ' + r.status)
-            }
-            if (!r.data.result || r.data.failed) {
+        return this.client.post<loginResponse>('/api/login', {
+            username,
+            password,
+        }).pipe(map((r) => {
+            if (!r.result || r.failed) {
                 throw new Error('Login information is incorrect.');
             }
-        });
+        }));
     }
 }

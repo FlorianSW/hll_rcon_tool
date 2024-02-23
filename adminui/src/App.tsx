@@ -9,28 +9,21 @@ import {
 } from '@cloudscape-design/components';
 import {Notification, Notifications} from './notifications';
 import {createBrowserRouter, LoaderFunction, Outlet, useLoaderData, useLocation} from 'react-router-dom';
-import Start, {loadDashboardLoader} from './start/start';
+import Start from './start/start';
 import {UserInformation, UserinfoService} from './userinfo.service';
-import createClient from './http-client';
 import {firstValueFrom} from 'rxjs';
 import LoginAction, {LoginActionRef} from './login-action';
-import {LogsService} from './logs.service';
-
-const client = createClient();
-const userinfoService = new UserinfoService(client);
-const logs = new LogsService(client);
-const notifications = new Notifications();
+import {services, useServices} from "./di";
 
 export const router = createBrowserRouter([
     {
         path: '/',
         element: <App/>,
         id: 'MAIN_ROUTE',
-        loader: mainLoader(userinfoService, notifications),
+        loader: mainLoader(services.userinfoService, services.notifications),
         children: [{
             path: '',
-            loader: loadDashboardLoader(logs, notifications),
-            element: <Start logsService={logs}/>,
+            element: <Start/>,
         }]
     },
 ]);
@@ -43,7 +36,7 @@ export interface MainRouteData {
 
 function mainLoader(ui: UserinfoService, notifications: Notifications): LoaderFunction {
     return async (p) => {
-        const user = await firstValueFrom(notifications.connectTo(userinfoService.info()));
+        const user = await firstValueFrom(notifications.connectTo(ui.info()));
         return {
             user: user,
         } as MainRouteData;
@@ -64,11 +57,12 @@ export function routerFollower(e: followEvent) {
 
     e.preventDefault();
     if (!!e.detail.href) {
-        router.navigate(e.detail.href).catch((e) => notifications.error('Navigation errored: ' + e));
+        router.navigate(e.detail.href).catch((e) => services.notifications.error('Navigation errored: ' + e));
     }
 }
 
 function App() {
+    const {notifications, userinfoService} = useServices();
     const [messages, setMessages] = useState<FlashbarProps.MessageDefinition[]>([]);
     const [user, setUser] = useState<UserInformation | undefined>(undefined);
     const data = useLoaderData() as MainRouteData;
@@ -93,8 +87,7 @@ function App() {
 
     return (
         <React.Fragment>
-            <LoginAction service={userinfoService} notifications={notifications} ref={loginRef}
-                         onLoggedIn={() => window.location.reload()}/>
+            <LoginAction ref={loginRef} onLoggedIn={() => window.location.reload()}/>
             <div id="h" style={{position: 'sticky', top: 0, zIndex: 1002}}>
                 <TopNavigation identity={{
                     title: 'Community RCon',

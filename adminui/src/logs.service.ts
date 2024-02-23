@@ -1,5 +1,5 @@
-import {AxiosInstance, HttpStatusCode} from 'axios';
-import {defer, Observable, of} from 'rxjs';
+import {map, Observable, of} from 'rxjs';
+import {HttpClient} from "./http-client";
 
 export interface Player {
     name: string;
@@ -50,7 +50,7 @@ interface recentLogsResponse {
 }
 
 export class LogsService {
-    constructor(private readonly client: AxiosInstance) {
+    constructor(private readonly client: HttpClient) {
     }
 
     setLimit(limit: number): Observable<void> {
@@ -92,18 +92,14 @@ export class LogsService {
         if (pf !== null) {
             body.filter_player = JSON.parse(pf);
         }
-        return defer(async () => {
-            const r = await this.client.post<recentLogsResponse>('/api/get_recent_logs', body);
-            if (r.status !== HttpStatusCode.Ok) {
-                throw new Error('Could not fetch recent logs information: ' + r.status)
-            }
-            if (r.data.failed) {
+        return this.client.post<recentLogsResponse>('/api/get_recent_logs', body).pipe(map((data) => {
+            if (data.failed) {
                 throw new Error('Failed loading recent logs')
             }
             return {
-                actions: r.data.result.actions,
-                players: r.data.result.players,
-                logs: r.data.result.logs.map((l) => ({
+                actions: data.result.actions,
+                players: data.result.players,
+                logs: data.result.logs.map((l) => ({
                     action: l.action,
                     lineWithoutTime: l.line_without_time,
                     message: l.message,
@@ -123,6 +119,6 @@ export class LogsService {
                     version: l.version,
                 })),
             } as Logs;
-        });
+        }));
     }
 }

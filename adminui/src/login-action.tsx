@@ -1,11 +1,8 @@
 import {Box, Button, Form, FormField, Input, Modal, SpaceBetween} from '@cloudscape-design/components';
 import React, {forwardRef, useImperativeHandle, useState} from 'react';
-import {UserinfoService} from './userinfo.service';
-import {Notifications} from './notifications';
+import {useServices} from "./di";
 
 interface LoginActionProps {
-    service: UserinfoService;
-    notifications: Notifications;
     onLoggedIn?: () => void;
 }
 
@@ -13,7 +10,8 @@ export interface LoginActionRef {
     show: () => void,
 }
 
-export default forwardRef(function LoginAction({service, notifications, onLoggedIn}: LoginActionProps, ref) {
+export default forwardRef(function LoginAction({onLoggedIn}: LoginActionProps, ref) {
+    const {notifications, userinfoService} =useServices();
     const [visible, setVisible] = useState(false);
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
@@ -29,7 +27,7 @@ export default forwardRef(function LoginAction({service, notifications, onLogged
 
     function submit() {
         setSubmitting(true);
-        notifications.connectTo(service.logIn(username, password))
+        notifications.connectTo(userinfoService.logIn(username, password))
             .subscribe({
                 next: () => {
                     setSubmitting(false);

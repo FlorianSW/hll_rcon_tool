@@ -1,26 +1,24 @@
 import React, {useState} from 'react';
-import {LogLine, Logs, LogsService} from '../logs.service';
+import {LogLine, Logs} from '../logs.service';
 import {PropertyFilter, PropertyFilterProps, Table} from '@cloudscape-design/components';
 import {useRevalidator} from 'react-router-dom';
+import {useServices} from "../di";
 
-interface LogsViewProps {
-    logs: Logs;
-    service: LogsService;
-}
-
-export default function LogsView({logs, service}: LogsViewProps) {
+export default function LogsView() {
+    const {logsService} = useServices();
     const [query, setQuery] = useState<PropertyFilterProps.Query>({tokens: [], operation: 'and'});
+    const [logs, setLogs] = useState<Logs | undefined>(undefined);
     const revalidator = useRevalidator();
 
     function updateQuery(q: PropertyFilterProps.Query) {
         setQuery(q);
-        service.setPlayerFilters(q.tokens.filter((t) => t.propertyKey === 'name').map((t) => t.value));
+        logsService.setPlayerFilters(q.tokens.filter((t) => t.propertyKey === 'name').map((t) => t.value));
         const actions = q.tokens.filter((t) => t.propertyKey === 'type').map((t) => t.value);
         let inclusive = true;
         if (actions.length !== 0) {
             inclusive = q.tokens.find((t) => t.propertyKey === 'type')!!.operator === '=';
         }
-        service.setActionFilters(actions, inclusive);
+        logsService.setActionFilters(actions, inclusive);
         revalidator.revalidate();
     }
 
@@ -60,7 +58,7 @@ export default function LogsView({logs, service}: LogsViewProps) {
             }}
             query={query}
             disableFreeTextFiltering={true}
-            countText={logs.logs.length + ' matches'}
+            countText={logs?.logs.length + ' matches'}
             onChange={(e) => updateQuery(e.detail)}
             hideOperations={true}
             filteringProperties={[{
@@ -77,11 +75,11 @@ export default function LogsView({logs, service}: LogsViewProps) {
                 groupValuesLabel: 'Type values',
             }]}
             filteringOptions={[
-                ...logs.players.map((k) => ({
+                ...(logs?.players || []).map((k) => ({
                     propertyKey: 'name',
                     value: k
                 })),
-                ...logs.actions.map((k) => ({
+                ...(logs?.actions || []).map((k) => ({
                     propertyKey: 'type',
                     value: k
                 })),
@@ -90,7 +88,7 @@ export default function LogsView({logs, service}: LogsViewProps) {
         resizableColumns={false}
         wrapLines={true}
         contentDensity="compact"
-        items={logs.logs}
+        items={logs?.logs || []}
         stickyHeader={true}
         columnDefinitions={[{
             id: 'timestamp',

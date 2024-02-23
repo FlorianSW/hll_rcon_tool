@@ -1,11 +1,16 @@
 {
   "compilerOptions": {
-    "target": "es5",
+    "target": "ESNext",
     "lib": [
       "dom",
       "dom.iterable",
       "esnext"
     ],
+    "paths": {
+      "@cloudscape-design/components": ["./themed/components"],
+      "@cloudscape-design/component-toolkit": ["./node_modules/cloudscape-design/components/internal/metrics"]
+    },
+    "types": ["vite/client", "node"],
     "allowJs": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
@@ -22,5 +27,5 @@
   },
   "include": [
     "src"
-  ]
+  ],
 }
